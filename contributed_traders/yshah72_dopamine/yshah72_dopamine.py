@@ -24,11 +24,12 @@ class yshah72_dopamine(TradingAgent):
         self.state = "AWAITING_WAKEUP"
         self.window1 = 10
         self.window2 = 5 
-        self.stream_history = {}
-        self.MinLength = 100
+        self.extended_stream_history = {}
+        self.MinLength = 10
         self.history = []
         self.ordersMade = {}
         self.orderCount = 0
+        self.yashWrite = open('/home/dopamine/yshah72_dopamine.txt', 'w')
 
 
     def kernelStarting(self, startTime):
@@ -42,10 +43,20 @@ class yshah72_dopamine(TradingAgent):
 
         self.state = 'AWAITING_SPREAD'
 
-    def placeOrder(self):
-        if self.symbol in self.stream_history and len(self.stream_history[self.symbol]) < self.MinLength:
+    def placeOrder(self, currentTime):
+
+        if self.mkt_close - currentTime <= pd.Timedelta('1 min'):
+            self.
+
+        if self.symbol in self.extended_stream_history and len(self.extended_stream_history[self.symbol]) < self.MinLength:
+            if self.symbol in self.extended_stream_history:
+                self.extended_stream_history[self.symbol] = (self.extended_stream_history[self.symbol] +
+                                                             self.stream_history[self.symbol])
+            else:
+                self.extended_stream_history[self.symbol] = self.stream_history[self.symbol]
             return 
         
+        self.yashWrite.write(f"In PlaceOrder \n")
         # first determine whether to buy or sell
         bid, _, ask, _ = self.getKnownBidAsk(self.symbol)
         toBuy = None
@@ -56,11 +67,12 @@ class yshah72_dopamine(TradingAgent):
                 s = pd.Series(self.history)
                 upper = s.rolling(window=self.window1).mean() + 1.5 * s.rolling(window=self.window1).std()
                 lower = s.rolling(window=self.window1).mean() - 1.5 * s.rolling(window=self.window1).std()
-                if self.history.iloc[-1] > upper.values.iloc[-1]: # sell order
+                if self.history[-1] > upper.values[-1]: # sell order
                     toBuy = False
-                elif self.history.iloc[-1] < lower.values.iloc[-1]: # buy order
+                elif self.history[-1] < lower.values[-1]: # buy order
                     toBuy = True
 
+        self.yashWrite.write(f"Decided to {'buy' if toBuy else 'sell'} \n")
 
         if toBuy is None:
             return
@@ -95,17 +107,25 @@ class yshah72_dopamine(TradingAgent):
         if toBuy:
             # buy at the lowest price
             buy_nd = nd[nd > 0]
+            if buy_nd.shape[0] == 0:
+                return
             limit_price = np.argmin(buy_nd) + min_price
             self.placeLimitOrder(self.symbol, quantity=self.size, is_buy_order=True, limit_price=limit_price)
             self.orderCount += 1
             self.ordersMade[self.orderCount] = {'limit_price': limit_price, 'is_buy_order': True}
+            self.yashWrite.write(f"Placed buy order at {limit_price} \n")
         else:
             # sell at the highest price
-            sell_nd = nd[nd < 0]
+            sell_nd = nd[nd <= 0]
+            if sell_nd.shape[0] == 0:
+                return
             limit_price = np.argmax(sell_nd) + min_price
             self.placeLimitOrder(self.symbol, quantity=self.size, is_buy_order=False, limit_price=limit_price)
             self.orderCount += 1
             self.ordersMade[self.orderCount] = {'limit_price': limit_price, 'is_buy_order': False}
+            self.yashWrite.write(f"Placed sell order at {limit_price} \n")
+
+        self.yashWrite.write(f"Orders made: {self.ordersMade} \n")
 
         
             
@@ -115,29 +135,29 @@ class yshah72_dopamine(TradingAgent):
         """ Momentum agent actions are determined after obtaining the best bid and ask in the LOB """
         super().receiveMessage(currentTime, msg)
         if self.state == 'AWAITING_SPREAD' and msg.body['msg'] == 'QUERY_SPREAD':
+            self.yashWrite.write(f"Received spread \n")
             self.getOrderStream(self.symbol)
             self.state = 'AWAITING_ORDER_STREAM'
 
-        elif self.state == 'AWAITING_ORDER_STREAM' and msg.body['msg'] == 'ORDER_STREAM':
-            self.placeOrder()
+        elif self.state == 'AWAITING_ORDER_STREAM' and msg.body['msg'] == 'QUERY_ORDER_STREAM':
+            self.yashWrite.write(f"Received order stream \n")
+            self.placeOrder(currentTime)
             self.setWakeup(currentTime + self.getWakeFrequency())
             self.state = 'AWAITING_WAKEUP'
+
+
             
-            # bid, _, ask, _ = self.getKnownBidAsk(self.symbol)
-            # if bid and ask:
-            #     self.mid_list.append((bid + ask) / 2)
-            #     if len(self.mid_list) > self.window1: self.avg_win1_list.append(pd.Series(self.mid_list).ewm(span=self.window1).mean().values[-1].round(2))
-            #     if len(self.mid_list) > self.window2: self.avg_win2_list.append(pd.Series(self.mid_list).ewm(span=self.window2).mean().values[-1].round(2))
-            #     if len(self.avg_win1_list) > 0 and len(self.avg_win2_list) > 0:
-            #         if self.avg_win1_list[-1] >= self.avg_win2_list[-1]:
-            #             # Check that we have enough cash to place the order
-            #             if self.holdings['CASH'] >= (self.size * ask):
-            #                 self.placeLimitOrder(self.symbol, quantity=self.size, is_buy_order=True, limit_price=ask)
-            #         else:
-            #             if self.symbol in self.holdings and self.holdings[self.symbol] > 0:
-            #                 self.placeLimitOrder(self.symbol, quantity=self.size, is_buy_order=False, limit_price=bid)
-            # self.setWakeup(currentTime + self.getWakeFrequency())
-            # self.state = 'AWAITING_WAKEUP'
+
 
     def getWakeFrequency(self):
         return pd.Timedelta(self.wake_up_freq)
+    
+
+    def author(self):
+        return 'yshah72'
+    
+    def agentname(self):
+        return 'yshah72_dopamine'
+    
+    def number_of_counting(self):
+        return self.orderCount
