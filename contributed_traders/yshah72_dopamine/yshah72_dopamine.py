@@ -44,9 +44,12 @@ class yshah72_dopamine(TradingAgent):
         self.state = 'AWAITING_SPREAD'
 
     def placeOrder(self, currentTime):
-
-        if self.mkt_close - currentTime <= pd.Timedelta('1 min'):
-            self.
+        self.yashWrite.write(f" currentTime = {currentTime}, marketClose = {self.mkt_close} \n")
+        if self.mkt_close - currentTime <= pd.Timedelta('5 min'):
+            if self.symbol in self.holdings and self.holdings[self.symbol] > 0:
+                limit_price = self.getLimitPrice(False)
+                self.placeLimitOrder(self.symbol, quantity=self.holdings[self.symbol], is_buy_order=False, limit_price=limit_price)
+            return
 
         if self.symbol in self.extended_stream_history and len(self.extended_stream_history[self.symbol]) < self.MinLength:
             if self.symbol in self.extended_stream_history:
@@ -72,13 +75,20 @@ class yshah72_dopamine(TradingAgent):
                 elif self.history[-1] < lower.values[-1]: # buy order
                     toBuy = True
 
-        self.yashWrite.write(f"Decided to {'buy' if toBuy else 'sell'} \n")
-
         if toBuy is None:
             return
         # Now determine at what price
         # iterate over the stream history and 
+        limit_price = self.getLimitPrice(toBuy)
 
+        self.placeLimitOrder(self.symbol, quantity=self.size, is_buy_order=toBuy, limit_price=limit_price)
+
+        self.orderCount += 1
+        self.ordersMade[self.orderCount] = {'limit_price': limit_price, 'is_buy_order': toBuy, 'quantity': self.size}
+
+        self.yashWrite.write(f"Place order at {'buy' if toBuy else 'sell'} {limit_price}  \n")
+            
+    def getLimitPrice(self, toBuy):
         min_price = np.inf 
         max_price = -np.inf
 
@@ -103,32 +113,24 @@ class yshah72_dopamine(TradingAgent):
         # if the columns are negative, that means there are more sell orders than buy orders
         # if the columns are positive, that means there are more buy orders than sell orders
 
-        # Now, let's maximize the profit, by buying at the lowest price and selling at the highest price
         if toBuy:
             # buy at the lowest price
             buy_nd = nd[nd > 0]
             if buy_nd.shape[0] == 0:
-                return
-            limit_price = np.argmin(buy_nd) + min_price
-            self.placeLimitOrder(self.symbol, quantity=self.size, is_buy_order=True, limit_price=limit_price)
-            self.orderCount += 1
-            self.ordersMade[self.orderCount] = {'limit_price': limit_price, 'is_buy_order': True}
-            self.yashWrite.write(f"Placed buy order at {limit_price} \n")
+                limit_price = (min_price + max_price) // 2
+            else:
+                limit_price = np.argmin(buy_nd) + min_price
         else:
             # sell at the highest price
             sell_nd = nd[nd <= 0]
             if sell_nd.shape[0] == 0:
-                return
-            limit_price = np.argmax(sell_nd) + min_price
-            self.placeLimitOrder(self.symbol, quantity=self.size, is_buy_order=False, limit_price=limit_price)
-            self.orderCount += 1
-            self.ordersMade[self.orderCount] = {'limit_price': limit_price, 'is_buy_order': False}
-            self.yashWrite.write(f"Placed sell order at {limit_price} \n")
+                limit_price = (min_price + max_price) // 2
+            else:
+                limit_price = np.argmax(sell_nd) + min_price
 
-        self.yashWrite.write(f"Orders made: {self.ordersMade} \n")
+        return limit_price
 
-        
-            
+
 
 
     def receiveMessage(self, currentTime, msg):
