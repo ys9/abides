@@ -30,6 +30,7 @@ class yshah72_dopamine(TradingAgent):
         self.ordersMade = {}
         self.orderCount = 0
         self.yashWrite = open('/home/dopamine/yshah72_dopamine.txt', 'w')
+        self.profit = 0
 
     def kernelStarting(self, startTime):
         super().kernelStarting(startTime)
@@ -49,6 +50,14 @@ class yshah72_dopamine(TradingAgent):
                 limit_price = self.getLimitPrice(False)
                 self.placeLimitOrder(self.symbol, quantity=self.holdings[self.symbol], is_buy_order=False,
                                      limit_price=limit_price)
+                self.profit += limit_price * self.size * (-1)
+                self.yashWrite.write(f"Selling all at {limit_price} with current profit = {self.profit} \n")
+            if self.symbol in self.holdings and self.holdings[self.symbol] < 0:
+                limit_price = self.getLimitPrice(True)
+                self.placeLimitOrder(self.symbol, quantity=self.holdings[self.symbol], is_buy_order=True,
+                                     limit_price=limit_price)
+                self.profit += limit_price * self.size
+                self.yashWrite.write(f"Buying all at {limit_price} with current profit = {self.profit} \n")
             return
 
         if self.symbol in self.extended_stream_history and len(
@@ -60,7 +69,6 @@ class yshah72_dopamine(TradingAgent):
                 self.extended_stream_history[self.symbol] = self.stream_history[self.symbol]
             return
 
-        self.yashWrite.write(f"In PlaceOrder \n")
         # first determine whether to buy or sell
         bid, _, ask, _ = self.getKnownBidAsk(self.symbol)
         toBuy = None
@@ -87,8 +95,9 @@ class yshah72_dopamine(TradingAgent):
 
         self.orderCount += 1
         self.ordersMade[self.orderCount] = {'limit_price': limit_price, 'is_buy_order': toBuy, 'quantity': self.size}
-
-        self.yashWrite.write(f"Place order at {'buy' if toBuy else 'sell'} {limit_price}  \n")
+        self.profit += limit_price * self.size * (1 if toBuy else -1)
+        self.yashWrite.write(f"Place order at {'buy' if toBuy else 'sell'} {limit_price} with current profit = "
+                             f"{self.profit} \n")
 
     def getLimitPrice(self, toBuy):
         min_price = np.inf
@@ -117,7 +126,7 @@ class yshah72_dopamine(TradingAgent):
         buy_nd = nd[nd > 0]
         sell_nd = nd[nd < 0]
 
-        bid, _, ask, _ = self.getKnownBidAsk(self.symbol)
+        bid, ask = self.getKnownBidAsk(self.symbol, best=False)
 
         s = pd.Series(self.history).ewm(span=self.window1).mean()
 
@@ -130,11 +139,12 @@ class yshah72_dopamine(TradingAgent):
                 limit_price = min_price + idx
             #     self.yashWrite.write(f"Setting Limit Price for Buy by First Condition {limit_price} \n")
             #
-            elif buy_nd.shape[0] != 0:
-                limit_price = np.argmin(buy_nd) + min_price
             else:
-                limit_price = (min_price + max_price) // 2
-
+                # limit_price = (min_price + max_price) // 2
+                if ask:
+                    limit_price = ask[0][0]
+                else:
+                    limit_price = (min_price + max_price) // 2
         else:
             # sell at the highest price
             if sell_nd.shape[0] == 0 and buy_nd.shape[0] != 0:
@@ -143,12 +153,11 @@ class yshah72_dopamine(TradingAgent):
                 # limit_price = np.argmax(buy_nd) + min_price
                 limit_price = min_price + idx
                 self.yashWrite.write(f"Setting Limit Price for Sell by First Condition {limit_price} \n")
-            elif sell_nd.shape[0] != 0:
-                limit_price = np.argmax(sell_nd) + min_price
             else:
-                limit_price = (min_price + max_price) // 2
-                # limit_price = s.iloc[-1]
-            # limit_price = max_price - 10
+                if bid:
+                    limit_price = bid[0][0]
+                else:
+                    limit_price = (min_price + max_price) // 2
 
 
         return limit_price
