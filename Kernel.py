@@ -465,14 +465,15 @@ class Kernel:
     path = os.path.join(".", "log", self.log_dir)
 
     if filename:
-      file = "{}.bz2".format(filename)
+      file = "{}.csv".format(filename)
     else:
-      file = "{}.bz2".format(self.agents[sender].name.replace(" ",""))
+      file = "{}.csv".format(self.agents[sender].name.replace(" ",""))
 
     if not os.path.exists(path):
       os.makedirs(path)
 
-    dfLog.to_pickle(os.path.join(path, file), compression='bz2')
+    dfLog.to_csv(os.path.join(path, file))
+    # dfLog.to_pickle(os.path.join(path, file), compression='bz2')
 
 
   def appendSummaryLog (self, sender, eventType, event):
