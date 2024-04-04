@@ -24,7 +24,7 @@ def run_abides(agent_name, seed):
 def compare_strategies():
     # Define the agents and seeds to compare
     agents = ["contributed_traders.yshah72_dopamine.yshah72_dopamine", "contributed_traders.SimpleAgent"]
-    seeds = seeds = [random.randint(1000000000, 2 ** 32) for _ in range(100)]
+    seeds = seeds = [random.randint(1000000000, 2 ** 32) for _ in range(1000)]
     print(seeds)
 
     # Run the simulations and collect the results

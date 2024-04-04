@@ -22,7 +22,7 @@ class yshah72_dopamine(TradingAgent):
         self.wake_up_freq = wake_up_freq
         self.log_orders = log_orders
         self.state = "AWAITING_WAKEUP"
-        self.window1 = 20
+        self.window1 = 50
         self.window2 = 5
         self.extended_stream_history = {}
         self.MinLength = 10
