@@ -27,7 +27,7 @@ def compare_strategies():
     seeds = seeds = [random.randint(1000000000, 2 ** 32) for _ in range(1000)]
     print(seeds)
 
-    # Run the simulations and collect the results
+    # Run the simulations and collect the results1
     results = {}
     for agent in agents:
         for seed in seeds:
