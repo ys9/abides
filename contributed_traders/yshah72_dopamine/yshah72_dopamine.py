@@ -22,18 +22,20 @@ class yshah72_dopamine(TradingAgent):
         self.wake_up_freq = wake_up_freq
         self.log_orders = log_orders
         self.state = "AWAITING_WAKEUP"
+
         self.window1 = 50
-        self.window2 = 5
-        self.extended_stream_history = {}
+
         self.MinLength = 10
         self.history = []
         self.ordersMade = {}
         self.orderCount = 0
-        self.yashWrite = open('/home/dopamine/yshah72_dopamine.txt', 'w')
-        self.profit = 0
 
     def kernelStarting(self, startTime):
         super().kernelStarting(startTime)
+
+    def kernelStopping(self):
+        super().kernelStopping()
+        super().kernelStopping()
 
     def wakeup(self, currentTime):
         """ Agent wakeup is determined by self.wake_up_freq """
@@ -44,30 +46,53 @@ class yshah72_dopamine(TradingAgent):
         self.state = 'AWAITING_SPREAD'
 
     def placeOrder(self, currentTime):
-        # self.yashWrite.write(f" currentTime = {currentTime}, marketClose = {self.mkt_close} \n")
+        """
+        def placeOrder(self, currentTime):
+        Places a limit order based on the current spread and the agent's current holdings.
+
+        This function first checks if the market is about to close. If it is, the function will sell all of the agent's holdings
+        if they are positive, or buy back all of the agent's holdings if they are negative.
+
+        If the market is not about to close, the function will determine whether to buy or sell based on the Bollinger Bands
+        of the mid-price history. If the latest mid-price is above the upper band, it will place a sell order. If the latest
+        mid-price is below the lower band, it will place a buy order.
+
+        The limit price for the order is determined based on the outstanding orders in the order book. If there are more sell
+        orders than buy orders at a certain price, the function will set the limit price to this price for a buy order. If there
+        are more buy orders than sell orders at a certain price, the function will set the limit price to this price for a sell
+        order. If there are no outstanding orders, the function will set the limit price to the mid-point of the highest and
+        lowest prices in the order book.
+
+        Parameters
+        ----------
+        currentTime : pd.Timestamp
+            The current time of the simulation.
+
+        Returns
+        -------
+        None
+        """
         if self.mkt_close - currentTime <= pd.Timedelta('5 min'):
             if self.symbol in self.holdings and self.holdings[self.symbol] > 0:
                 limit_price = self.getLimitPrice(False)
                 self.placeLimitOrder(self.symbol, quantity=self.holdings[self.symbol], is_buy_order=False,
                                      limit_price=limit_price)
-                self.profit += limit_price * self.size * (-1)
-                self.yashWrite.write(f"Selling all at {limit_price} with current profit = {self.profit} \n")
+
             if self.symbol in self.holdings and self.holdings[self.symbol] < 0:
                 limit_price = self.getLimitPrice(True)
                 self.placeLimitOrder(self.symbol, quantity=self.holdings[self.symbol], is_buy_order=True,
                                      limit_price=limit_price)
-                self.profit += limit_price * self.size
-                self.yashWrite.write(f"Buying all at {limit_price} with current profit = {self.profit} \n")
+
             return
 
-        if self.symbol in self.extended_stream_history and len(
-                self.extended_stream_history[self.symbol]) < self.MinLength:
-            if self.symbol in self.extended_stream_history:
-                self.extended_stream_history[self.symbol] = (self.extended_stream_history[self.symbol] +
-                                                             self.stream_history[self.symbol])
-            else:
-                self.extended_stream_history[self.symbol] = self.stream_history[self.symbol]
-            return
+        # if self.symbol in self.extended_stream_history and len(
+        #         self.extended_stream_history[self.symbol]) < self.MinLength:
+        #     if self.symbol in self.extended_stream_history:
+        #         self.extended_stream_history[self.symbol] = (self.extended_stream_history[self.symbol] +
+        #                                                      self.stream_history[self.symbol])
+        #     else:
+        #         self.extended_stream_history[self.symbol] = self.stream_history[self.symbol]
+        #     return
 
         # first determine whether to buy or sell
         bid, _, ask, _ = self.getKnownBidAsk(self.symbol)
@@ -90,16 +115,36 @@ class yshah72_dopamine(TradingAgent):
         # Now determine at what price
         # iterate over the stream history and 
         limit_price = self.getLimitPrice(toBuy)
-
         self.placeLimitOrder(self.symbol, quantity=self.size, is_buy_order=toBuy, limit_price=limit_price)
 
         self.orderCount += 1
         self.ordersMade[self.orderCount] = {'limit_price': limit_price, 'is_buy_order': toBuy, 'quantity': self.size}
-        self.profit += limit_price * self.size * (1 if toBuy else -1)
-        self.yashWrite.write(f"Place order at {'buy' if toBuy else 'sell'} {limit_price} with current profit = "
-                             f"{self.profit} \n")
 
     def getLimitPrice(self, toBuy):
+        """
+        Determines the limit price for an order based on the current state of the order book and the agent's intention to buy or sell.
+
+        This function first calculates the minimum and maximum prices in the order book. It then calculates the number of outstanding
+        buy and sell orders at each price level.
+
+        If the agent intends to buy and there are more sell orders than buy orders at a certain price, the function sets the limit
+        price to this price. If there are no outstanding sell orders, the function sets the limit price to the mid-point of the highest
+        and lowest prices in the order book.
+
+        If the agent intends to sell and there are more buy orders than sell orders at a certain price, the function sets the limit
+        price to this price. If there are no outstanding buy orders, the function sets the limit price to the mid-point of the highest
+        and lowest prices in the order book.
+
+        Parameters
+        ----------
+        toBuy : bool
+            A boolean indicating whether the agent intends to buy (True) or sell (False).
+
+        Returns
+        -------
+        limit_price : int
+        The limit price for the order.
+        """
         min_price = np.inf
         max_price = -np.inf
 
@@ -152,7 +197,7 @@ class yshah72_dopamine(TradingAgent):
                 idx = 0 if len(idx) == 0 else idx[-1]
                 # limit_price = np.argmax(buy_nd) + min_price
                 limit_price = min_price + idx
-                self.yashWrite.write(f"Setting Limit Price for Sell by First Condition {limit_price} \n")
+                # self.yashWrite.write(f"Setting Limit Price for Sell by First Condition {limit_price} \n")
             else:
                 if bid:
                     limit_price = bid[0][0]

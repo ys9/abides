@@ -1,0 +1,25 @@
+yshah72_dopamine.py
+yshah72_dopamine.py is a Python script that defines a trading agent for a financial market simulation. The agent uses a
+strategy based on Bollinger Bands and the state of the order book to decide when to place buy and sell orders.
+Key Functions
+
+getLimitPrice(self, toBuy)
+
+This function determines the limit price for an order based on the current state of the order book and the agent's
+intention to buy or sell. It calculates the minimum and maximum prices in the order book and the number of outstanding
+buy and sell orders at each price level. Depending on whether the agent intends to buy or sell, and the state of the
+order book, it sets the limit price accordingly.
+placeOrder(self, currentTime)
+This function places a limit order based on the current spread and the agent's current holdings. It checks if the market
+ is about to close and if so, it will sell all of the agent's holdings if they are positive, or buy back all of the
+ agent's holdings if they are negative. If the market is not about to close, it determines whether to buy or sell based
+ on the Bollinger Bands of the mid-price history.
+receiveMessage(self, currentTime, msg)
+This function is called when the agent receives a message from the market. Depending on the state of the agent and the
+type of the message, it performs different actions. For example, if the agent is waiting for the spread and it receives
+a 'QUERY_SPREAD' message, it will request the order stream and change its state to 'AWAITING_ORDER_STREAM'.
+Usage
+To use the yshah72_dopamine agent in a simulation, you need to create an instance of the yshah72_dopamine class and add
+it to the list of agents in the simulation. The agent will automatically place orders based on its strategy and the
+state of the market.  Please note that this script is part of a larger project and relies on several other modules for
+its operation. Make sure to have all the necessary dependencies installed and correctly set up before running the script.
