@@ -35,7 +35,6 @@ class yshah72_dopamine(TradingAgent):
 
     def kernelStopping(self):
         super().kernelStopping()
-        super().kernelStopping()
 
     def wakeup(self, currentTime):
         """ Agent wakeup is determined by self.wake_up_freq """
