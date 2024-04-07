@@ -1,3 +1,9 @@
+# Author: Yash Shah
+# Agent Name: yshah72_dopamine
+#
+# The author of this code hereby permits it to be included as a part of the ABIDES distribution,
+# and for it to be released under any open source license the ABIDES authors choose to release ABIDES under.
+
 from agent.TradingAgent import TradingAgent
 import pandas as pd
 import numpy as np
@@ -5,11 +11,9 @@ import numpy as np
 
 class yshah72_dopamine(TradingAgent):
     """
-    Simple Trading Agent that compares the past mid-price observations and places a
-    buy limit order if the first window mid-price exponential average >= the second window mid-price exponential average or a
-    sell limit order if the first window mid-price exponential average < the second window mid-price exponential average
+    Simple Agent that uses Bollinger Bands to compute whether to buy or sell ,
+    and uses the order book to determine the limit price for the order.
     """
-
     def __init__(self, id, name, type, symbol, starting_cash,
                  min_size, max_size, wake_up_freq='60s',
                  log_orders=False, random_state=None):
@@ -22,9 +26,7 @@ class yshah72_dopamine(TradingAgent):
         self.wake_up_freq = wake_up_freq
         self.log_orders = log_orders
         self.state = "AWAITING_WAKEUP"
-
         self.window1 = 50
-
         self.MinLength = 10
         self.history = []
         self.ordersMade = {}

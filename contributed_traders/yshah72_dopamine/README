@@ -34,4 +34,7 @@ state of the market.  Please note that this script is part of a larger project a
 its operation. Make sure to have all the necessary dependencies installed and correctly set up before running the script.
 
 
-On the side, I have also done some tests on my own.
+Analysis:
+I have analyzed the performance of my agent with Simple Agent and ZIT Agent. I have obtained the results where out of
+995 test runs, my agent outperformed around 86% of the time. This is a very simple strategy I am using, and I believe it
+ coule be optimized later on.
